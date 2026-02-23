@@ -43,7 +43,7 @@ A lightweight, browser-based tool to visualize package dependencies from `packag
 ## Installation & Usage
 
 ### Option 1: Live Demo
-Visit the [live web app](https://bundy-sand.vercel.app/#/) (if deployed) to start visualizing immediately.
+Visit the [live web app](https://bundy-sand.vercel.app/#/)to start visualizing immediately.
 
 ### Option 2: Local Development
 
