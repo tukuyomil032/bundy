@@ -1,7 +1,3 @@
-/**
- * パーサーエントリーポイント
- * パッケージマップからツリーを構築する
- */
 import type {
   PackageMap,
   PackageNode,
@@ -14,13 +10,21 @@ import type {
 import { parseNpmLock } from './npm'
 import { parseYarnLock } from './yarn'
 import { parsePnpmLock } from './pnpm'
-
-// ─── ロックファイル検出・パース ───────────────────────────────────────────────
+import { parseBunLock } from './bun'
 
 export function detectLockfileType(filename: string): LockfileType {
-  if (filename === 'package-lock.json') return 'npm'
-  if (filename === 'yarn.lock') return 'yarn'
-  if (filename === 'pnpm-lock.yaml' || filename === 'pnpm-lock.yml') return 'pnpm'
+  if (filename === 'package-lock.json') {
+    return 'npm'
+  }
+  if (filename === 'yarn.lock') {
+  return 'yarn'
+  }
+  if (filename === 'pnpm-lock.yaml' || filename === 'pnpm-lock.yml') {
+    return 'pnpm'
+  }
+  if (filename === 'bun.lock') {
+    return 'bun'
+  }
   return 'none'
 }
 
@@ -32,18 +36,15 @@ export function parseLockfile(raw: string, type: LockfileType): PackageMap {
       return parseYarnLock(raw)
     case 'pnpm':
       return parsePnpmLock(raw)
+    case 'bun':
+      return parseBunLock(raw)
     default:
       return new Map()
   }
 }
 
-// ─── ツリー構築 ───────────────────────────────────────────────────────────────
+const MAX_DEPTH = 20
 
-const MAX_DEPTH = 20 // 無限再帰防止の絶対上限
-
-/**
- * package.json と PackageMap からツリーを構築し AnalysisResult を返す
- */
 export function buildAnalysisResult(
   packageJsonRaw: string,
   lockfileRaw: string | null,
@@ -54,9 +55,8 @@ export function buildAnalysisResult(
   const map: PackageMap = lockfileRaw && lockfileType !== 'none' ? parseLockfile(lockfileRaw, lockfileType) : new Map()
 
   const circularDeps: string[] = []
-  const visitedNames = new Set<string>() // ユニーク名の収集
+  const visitedNames = new Set<string>()
 
-  // root ノードを構築
   const root: PackageNode = {
     id: 'root',
     name: pkgJson.name ?? 'root',
@@ -67,7 +67,6 @@ export function buildAnalysisResult(
     path: [],
   }
 
-  // 4 種の依存を順番に追加
   const depEntries: { deps: Record<string, string> | undefined; kind: DepKind }[] = [
     { deps: pkgJson.dependencies, kind: 'dependency' },
     { deps: pkgJson.devDependencies, kind: 'devDependency' },
@@ -76,7 +75,9 @@ export function buildAnalysisResult(
   ]
 
   for (const { deps, kind } of depEntries) {
-    if (!deps) continue
+    if (!deps) {
+        continue
+    }
     for (const [name, spec] of Object.entries(deps)) {
       const resolved = resolvePackage(name, spec, map)
       const child = buildNode(
@@ -94,12 +95,13 @@ export function buildAnalysisResult(
     }
   }
 
-  // 重複バージョン検出
   const duplicates: Record<string, string[]> = {}
   const nameVersionMap: Record<string, Set<string>> = {}
   for (const [key, pkg] of map.entries()) {
     void key
-    if (!nameVersionMap[pkg.name]) nameVersionMap[pkg.name] = new Set()
+    if (!nameVersionMap[pkg.name]) {
+        nameVersionMap[pkg.name] = new Set()
+    }
     nameVersionMap[pkg.name]!.add(pkg.version)
   }
   for (const [name, versions] of Object.entries(nameVersionMap)) {
@@ -118,8 +120,6 @@ export function buildAnalysisResult(
   }
 }
 
-// ─── ノード再帰構築 ───────────────────────────────────────────────────────────
-
 function buildNode(
   name: string,
   version: string,
@@ -134,7 +134,7 @@ function buildNode(
   visitedNames.add(name)
 
   const nodeId = `${name}@${version}`
-  const isCircular = ancestorPath.includes(name) // 先祖にすでに存在するなら循環
+  const isCircular = ancestorPath.includes(name)
   const newPath = [...ancestorPath, name]
 
   if (isCircular) {
@@ -200,26 +200,23 @@ function buildNode(
   }
 }
 
-// ─── バージョン解決 ───────────────────────────────────────────────────────────
-
-/**
- * パッケージマップから最も近いバージョンを探す
- * semver の完全解決はブラウザでは重いため、前方一致で近似する
- */
 function resolvePackage(name: string, spec: string, map: PackageMap): ResolvedPackage | undefined {
-  // まず spec がそのままバージョンのケース (pnpm 等)
   const exactKey = `${name}@${spec}`
-  if (map.has(exactKey)) return map.get(exactKey)
+  if (map.has(exactKey)) {
+  return map.get(exactKey)
+  }
 
-  // prefix (^/~/>=等) を除去してマッチ
   const cleanSpec = spec.replace(/^[^0-9]/, '').split(/[-+]/)[0]
   const cleanKey = `${name}@${cleanSpec}`
-  if (map.has(cleanKey)) return map.get(cleanKey)
+  if (map.has(cleanKey)) {
+    return map.get(cleanKey)
+  }
 
-  // 名前だけで前方一致検索 — 最初にヒットしたものを返す
   const prefix = `${name}@`
   for (const [key, pkg] of map.entries()) {
-    if (key.startsWith(prefix) && pkg.name === name) return pkg
+    if (key.startsWith(prefix) && pkg.name === name) {
+        return pkg
+    }
   }
 
   return undefined

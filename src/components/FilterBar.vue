@@ -22,67 +22,159 @@ const filters = [
 </script>
 
 <template>
-  <div
-    class="flex items-center gap-3 px-4 py-2 shrink-0 flex-wrap"
-    style="background: var(--color-surface); border-bottom: 1px solid var(--color-border)"
-  >
-    <!-- 検索 -->
-    <div class="flex items-center gap-2 flex-1 min-w-48">
-      <span class="text-xs" style="color: var(--color-muted)">🔍</span>
+  <div class="filter-bar">
+    <div class="search-field">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+        <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+      </svg>
       <input
         v-model="store.searchQuery"
+        class="search-input"
         type="text"
-        placeholder="パッケージ名で検索..."
-        class="flex-1 text-sm bg-transparent outline-none font-mono"
-        style="color: var(--color-text); caret-color: var(--color-accent)"
+        placeholder="Search packages..."
       />
-      <button
-        v-if="store.searchQuery"
-        class="text-xs cursor-pointer shrink-0"
-        style="color: var(--color-muted)"
-        @click="store.searchQuery = ''"
-      >
-        ×
-      </button>
+      <button v-if="store.searchQuery" class="clear-btn" @click="store.searchQuery = ''">×</button>
     </div>
 
-    <div class="w-px h-4" style="background: var(--color-border)"></div>
+    <div class="bar-sep"></div>
 
-    <!-- 種別フィルター -->
-    <div class="flex items-center gap-1.5">
+    <div class="kind-filters">
       <button
         v-for="f in filters"
         :key="f.key"
-        class="px-2 py-0.5 rounded text-[11px] font-mono cursor-pointer transition-all"
+        class="kind-btn"
+        :class="{ active: opts[f.key] }"
         :style="{
-          background: opts[f.key] ? `${f.color}20` : 'var(--color-surface-2)',
-          color: opts[f.key] ? f.color : 'var(--color-muted)',
-          border: opts[f.key] ? `1px solid ${f.color}40` : '1px solid var(--color-border)',
-          opacity: opts[f.key] ? '1' : '0.5',
+          '--kind-color': f.color,
+          opacity: opts[f.key] ? '1' : '0.4',
         }"
         :title="f.title"
         @click="toggle(f.key)"
-      >
-        {{ f.label }}
-      </button>
+      >{{ f.label }}</button>
     </div>
 
-    <div class="w-px h-4" style="background: var(--color-border)"></div>
+    <div class="bar-sep"></div>
 
-    <!-- 深さ制御 -->
-    <div class="flex items-center gap-2">
-      <span class="text-xs shrink-0" style="color: var(--color-muted)">深さ</span>
+    <div class="depth-row">
+      <span class="depth-label">Depth</span>
       <input
         type="range"
         min="1"
         max="20"
         :value="opts.maxDepth"
-        class="w-24 accent-indigo-500 cursor-pointer"
+        class="depth-slider"
         @input="setMaxDepth(Number(($event.target as HTMLInputElement).value))"
       />
-      <span class="text-xs font-mono w-4 shrink-0" style="color: var(--color-text)">
-        {{ opts.maxDepth }}
-      </span>
+      <span class="depth-val">{{ opts.maxDepth }}</span>
     </div>
   </div>
 </template>
+
+<style scoped>
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  height: 40px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 160px;
+  max-width: 260px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.search-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+  caret-color: var(--accent);
+}
+.search-input::placeholder {
+  color: var(--muted);
+  font-family: inherit;
+}
+.clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+.clear-btn:hover {
+  color: var(--text-bright);
+}
+
+.bar-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.kind-filters {
+  display: flex;
+  gap: 4px;
+}
+.kind-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--surface-3);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.kind-btn.active {
+  background: color-mix(in srgb, var(--kind-color) 15%, transparent);
+  color: var(--kind-color);
+  border-color: color-mix(in srgb, var(--kind-color) 40%, transparent);
+}
+
+.depth-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.depth-label {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.depth-slider {
+  width: 80px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.depth-val {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-bright);
+  min-width: 16px;
+  text-align: right;
+}
+</style>

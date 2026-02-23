@@ -44,73 +44,44 @@ function selectNode() {
 </script>
 
 <template>
-  <div class="select-none">
-    <!-- ノード行 -->
+  <div class="node-wrap">
     <div
-      class="flex items-center gap-1.5 py-1 px-2 rounded-lg cursor-pointer transition-colors group"
-      :style="{
-        marginLeft: `${depth * 20}px`,
-        background: isSelected ? 'rgba(99,102,241,0.15)' : isHighlighted ? 'rgba(250,204,21,0.08)' : 'transparent',
-        border: isSelected ? '1px solid rgba(99,102,241,0.4)' : '1px solid transparent',
-      }"
+      class="node-row"
+      :class="{ selected: isSelected, highlighted: isHighlighted }"
+      :style="{ paddingLeft: `${8 + depth * 18}px` }"
       @click="selectNode"
     >
-      <!-- 展開トグル -->
       <button
         v-if="node.children.length > 0"
-        class="w-4 h-4 flex items-center justify-center text-xs shrink-0 rounded cursor-pointer transition-colors"
-        style="color: var(--color-muted)"
-        @click.stop="toggleExpand"
+        class="expand-btn"
         :aria-expanded="isExpanded"
-        :aria-label="isExpanded ? '折りたたむ' : '展開する'"
-      >
-        {{ isExpanded ? '▼' : '▶' }}
-      </button>
-      <span v-else class="w-4 h-4 shrink-0"></span>
-
-      <!-- 循環依存アイコン -->
-      <span v-if="node.isCircular" title="循環依存" class="text-xs shrink-0" style="color: #f97316">🔄</span>
-
-      <!-- 依存種別バッジ (ルート以外) -->
+        @click.stop="toggleExpand"
+      >{{ isExpanded ? '▾' : '▸' }}</button>
+      <span v-else class="expand-spacer"></span>
+      <span v-if="node.isCircular" class="circ-mark" title="Circular dependency">↺</span>
       <span
         v-if="depth > 0"
-        class="text-[10px] px-1 rounded font-mono shrink-0"
+        class="kind-chip"
         :style="{
-          background: `${kindColor[node.kind]}20`,
+          background: `${kindColor[node.kind]}18`,
           color: kindColor[node.kind],
-          border: `1px solid ${kindColor[node.kind]}40`,
+          borderColor: `${kindColor[node.kind]}40`,
         }"
-      >
-        {{ kindLabel[node.kind] }}
-      </span>
+      >{{ kindLabel[node.kind] }}</span>
 
-      <!-- パッケージ名 -->
       <span
-        class="text-sm font-mono truncate"
-        :style="{
-          color: isHighlighted ? '#fde047' : isSelected ? 'var(--color-accent-hover)' : 'var(--color-text)',
-          fontWeight: depth === 0 ? '600' : '400',
-        }"
-        >{{ node.name }}</span
-      >
+        class="pkg-name"
+        :class="{ root: depth === 0, matched: isHighlighted }"
+      >{{ node.name }}</span>
 
-      <!-- バージョン -->
-      <span class="text-xs font-mono shrink-0" style="color: var(--color-muted)">
-        {{ node.version }}
-      </span>
+      <span class="pkg-version">{{ node.version }}</span>
 
-      <!-- 子ノード数バッジ -->
-      <span
-        v-if="node.children.length > 0 && !isExpanded"
-        class="ml-auto text-[10px] px-1.5 py-0.5 rounded-full font-mono shrink-0"
-        style="background: var(--color-surface-2); color: var(--color-muted)"
-      >
+      <span v-if="node.children.length > 0 && !isExpanded" class="child-count">
         +{{ node.children.length }}
       </span>
     </div>
 
-    <!-- 子ノード (再帰) -->
-    <div v-if="isExpanded && node.children.length > 0">
+    <div v-if="isExpanded && node.children.length > 0" class="children">
       <TreeNode
         v-for="child in node.children"
         :key="child.id"
@@ -121,3 +92,107 @@ function selectNode() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.node-wrap {
+  user-select: none;
+}
+.node-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-right: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+.node-row:hover {
+  background: var(--surface-2);
+}
+.node-row.selected {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+.node-row.highlighted:not(.selected) {
+  background: rgba(250, 204, 21, 0.07);
+}
+
+.expand-btn {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.expand-btn:hover {
+  color: var(--text-bright);
+  background: var(--surface-3);
+}
+.expand-spacer {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.circ-mark {
+  font-size: 11px;
+  color: #fb923c;
+  flex-shrink: 0;
+}
+
+.kind-chip {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid;
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+.pkg-name {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.pkg-name.root {
+  color: var(--text-bright);
+  font-weight: 600;
+  font-size: 13px;
+}
+.pkg-name.matched {
+  color: #fde047;
+}
+.pkg-version {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.child-count {
+  margin-left: auto;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+</style>

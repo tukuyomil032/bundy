@@ -1,6 +1,3 @@
-/**
- * Pinia ストア — 解析結果と UI 状態を管理する
- */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AnalysisResult, FilterOptions, PackageNode } from '@/types'
@@ -9,7 +6,6 @@ import { fetchFromGitHub, parseGitHubInput } from '@/services/github'
 import { detectLockfileType } from '@/parsers'
 
 export const useAnalysisStore = defineStore('analysis', () => {
-  // ─── State ──────────────────────────────────────────────────────────────────
   const result = ref<AnalysisResult | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -24,16 +20,14 @@ export const useAnalysisStore = defineStore('analysis', () => {
     maxDepth: 10,
   })
 
-  // ─── Computed ────────────────────────────────────────────────────────────────
   const hasResult = computed(() => result.value !== null)
   const filteredRoot = computed(() => {
-    if (!result.value) return null
+    if (!result.value) {
+        return null
+    }
     return filterNode(result.value.root, filterOptions.value, 0)
   })
 
-  // ─── Actions ─────────────────────────────────────────────────────────────────
-
-  /** ローカルファイルから解析を実行する */
   async function analyzeLocal(packageJsonFile: File, lockfileFile: File | null): Promise<void> {
     loading.value = true
     error.value = null
@@ -49,15 +43,14 @@ export const useAnalysisStore = defineStore('analysis', () => {
         lockfileRaw = await readFileAsText(lockfileFile)
       }
 
-      result.value = buildAnalysisResult(packageJsonRaw, lockfileRaw, lockfileType, 'ローカルアップロード')
+      result.value = buildAnalysisResult(packageJsonRaw, lockfileRaw, lockfileType, 'Local Upload')
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '解析中にエラーが発生しました'
+      error.value = e instanceof Error ? e.message : 'An error occurred during analysis'
     } finally {
       loading.value = false
     }
   }
 
-  /** GitHub URL から解析を実行する */
   async function analyzeGitHub(inputUrl: string): Promise<void> {
     loading.value = true
     error.value = null
@@ -68,7 +61,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
       const parsed = parseGitHubInput(inputUrl)
       if (!parsed) {
         throw new Error(
-          '無効な GitHub URL です。"owner/repo" または "https://github.com/owner/repo" 形式で入力してください。'
+          'Invalid GitHub URL. Enter in "owner/repo" or "https://github.com/owner/repo" format.'
         )
       }
 
@@ -81,7 +74,7 @@ export const useAnalysisStore = defineStore('analysis', () => {
         `github.com/${parsed.owner}/${parsed.repo}@${ref}`
       )
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '取得中にエラーが発生しました'
+      error.value = e instanceof Error ? e.message : 'An error occurred while fetching data'
     } finally {
       loading.value = false
     }
@@ -102,13 +95,11 @@ export const useAnalysisStore = defineStore('analysis', () => {
     filterOptions.value = { ...filterOptions.value, ...opts }
   }
 
-  // ─── ヘルパー ──────────────────────────────────────────────────────────────
-
   function readFileAsText(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result as string)
-      reader.onerror = () => reject(new Error(`ファイル読み込みエラー: ${file.name}`))
+      reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`))
       reader.readAsText(file)
     })
   }
@@ -130,24 +121,33 @@ export const useAnalysisStore = defineStore('analysis', () => {
   }
 })
 
-// ─── フィルタリング ────────────────────────────────────────────────────────────
-
 function filterNode(node: PackageNode, opts: FilterOptions, depth: number): PackageNode | null {
-  // 深さ超過はルートのみ無効にしない
-  if (depth > opts.maxDepth && depth > 0) return null
 
-  // 種別フィルター
+  if (depth > opts.maxDepth && depth > 0) {
+    return null
+  }
+
   if (depth > 0) {
-    if (node.kind === 'dependency' && !opts.showDeps) return null
-    if (node.kind === 'devDependency' && !opts.showDevDeps) return null
-    if (node.kind === 'peerDependency' && !opts.showPeerDeps) return null
-    if (node.kind === 'optionalDependency' && !opts.showOptionalDeps) return null
+    if (node.kind === 'dependency' && !opts.showDeps) {
+        return null
+    }
+    if (node.kind === 'devDependency' && !opts.showDevDeps) {
+        return null
+    }
+    if (node.kind === 'peerDependency' && !opts.showPeerDeps) {
+        return null
+    }
+    if (node.kind === 'optionalDependency' && !opts.showOptionalDeps) {
+        return null
+    }
   }
 
   const filteredChildren: PackageNode[] = []
   for (const child of node.children) {
     const filtered = filterNode(child, opts, depth + 1)
-    if (filtered !== null) filteredChildren.push(filtered)
+    if (filtered !== null) {
+        filteredChildren.push(filtered)
+    }
   }
 
   return { ...node, children: filteredChildren }

@@ -20,69 +20,141 @@ function fillExample(example: string) {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div>
-      <label class="block text-xs mb-1.5" style="color: var(--color-muted)">
-        GitHub リポジトリ URL または owner/repo
-      </label>
-      <div class="flex gap-2">
+  <div class="github-wrap">
+    <div class="field-group">
+      <label class="field-label">GitHub repository URL or <code>owner/repo</code></label>
+      <div class="input-row">
         <input
           v-model="input"
+          class="field-input"
           type="text"
-          placeholder="例: facebook/react"
-          class="flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-colors font-mono"
-          style="background: var(--color-surface-2); border: 1px solid var(--color-border); color: var(--color-text)"
+          placeholder="e.g. facebook/react"
           @keydown.enter="handleAnalyze"
         />
-        <button
-          class="px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer disabled:opacity-40"
-          :style="{
-            background: input.trim() ? 'var(--color-accent)' : 'var(--color-surface-2)',
-            color: input.trim() ? '#fff' : 'var(--color-muted)',
-          }"
-          :disabled="!input.trim()"
-          @click="handleAnalyze"
-        >
-          解析
-        </button>
+        <button class="btn-primary" :disabled="!input.trim()" @click="handleAnalyze">Analyze</button>
       </div>
+      <p class="field-hint">
+        Branch: <code>owner/repo@branch</code> or
+        <code>https://github.com/owner/repo/tree/branch</code>
+      </p>
     </div>
 
-    <!-- ブランチ指定の説明 -->
-    <p class="text-xs" style="color: var(--color-muted)">
-      ブランチ指定: <code class="px-1 rounded" style="background: var(--color-surface-2)">owner/repo@branch</code>
-      &nbsp;または&nbsp;
-      <code class="px-1 rounded" style="background: var(--color-surface-2)"
-        >https://github.com/owner/repo/tree/branch</code
-      >
-    </p>
-
-    <!-- サンプルリポジトリ -->
-    <div>
-      <p class="text-xs mb-1.5" style="color: var(--color-muted)">サンプル:</p>
-      <div class="flex gap-2 flex-wrap">
-        <button
-          v-for="ex in examples"
-          :key="ex"
-          class="px-2 py-1 rounded text-xs font-mono cursor-pointer transition-colors"
-          style="background: var(--color-surface-2); color: var(--color-muted); border: 1px solid var(--color-border)"
-          @click="fillExample(ex)"
-        >
-          {{ ex }}
-        </button>
-      </div>
+    <div class="examples-row">
+      <span class="examples-label">Examples:</span>
+      <button
+        v-for="ex in examples"
+        :key="ex"
+        class="example-chip"
+        @click="fillExample(ex)"
+      >{{ ex }}</button>
     </div>
 
-    <!-- 公開リポジトリのみの注意 -->
-    <div
-      class="flex items-start gap-2 p-3 rounded-lg text-xs"
-      style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2)"
-    >
-      <span>ℹ️</span>
-      <span style="color: var(--color-muted)">
-        現在は <strong style="color: var(--color-text)">公開リポジトリのみ</strong> に対応しています。
-        プライベートリポジトリはローカルアップロードをご利用ください。
+    <div class="notice-box">
+      <span class="notice-icon">i</span>
+      <span>
+        Only <strong>public repositories</strong> are supported.
+        For private repos, use Local Upload.
       </span>
     </div>
   </div>
 </template>
+
+<style scoped>
+.github-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--surface-3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.field-hint code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  background: var(--surface-3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text);
+  border: 1px solid var(--border-light);
+}
+
+.examples-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.examples-label {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.example-chip {
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.example-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+.notice-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+.notice-box strong {
+  color: var(--text-bright);
+}
+</style>

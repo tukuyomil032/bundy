@@ -1,21 +1,16 @@
-/**
- * GitHub 公開リポジトリから package.json とロックファイルを取得するサービス
- * raw.githubusercontent.com を使用 (CORS 不要)
- */
 import { detectLockfileType } from '@/parsers'
 import type { LockfileType } from '@/types'
 
 const RAW_BASE = 'https://raw.githubusercontent.com'
-const LOCKFILE_CANDIDATES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'pnpm-lock.yml']
+const LOCKFILE_CANDIDATES = ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'pnpm-lock.yml', 'bun.lock']
 
 export interface GitHubFetchResult {
   packageJson: string
   lockfile: string | null
   lockfileType: LockfileType
-  ref: string // 実際に使用したブランチ/タグ/SHA
+  ref: string
 }
 
-/** GitHub URL または "owner/repo" 形式を正規化する */
 export function parseGitHubInput(input: string): {
   owner: string
   repo: string
@@ -23,53 +18,68 @@ export function parseGitHubInput(input: string): {
 } | null {
   input = input.trim().replace(/\/+$/, '')
 
-  // https://github.com/owner/repo[@/]ref 形式
-  const urlMatch = input.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\/tree\/(.+))?(?:\.git)?$/)
+  const urlMatch = input.match(/^https?:\/\/github\.com\/([a-z0-9_-]+)\/([a-z0-9._-]+?)(?:\/tree\/([a-z0-9_\/-]+))?(?:\.git)?$/i)
   if (urlMatch) {
-    return { owner: urlMatch[1] ?? '', repo: urlMatch[2] ?? '', ref: urlMatch[3] }
+    return { owner: urlMatch[1]!, repo: urlMatch[2]!, ref: urlMatch[3] }
   }
 
-  // owner/repo[@ref] 形式
-  const shortMatch = input.match(/^([^/]+)\/([^/@]+)(?:@(.+))?$/)
+  const shortMatch = input.match(/^([a-z0-9_-]+)\/([a-z0-9._-]+)(?:@([a-z0-9_\/-]+))?$/i)
   if (shortMatch) {
-    return { owner: shortMatch[1] ?? '', repo: shortMatch[2] ?? '', ref: shortMatch[3] }
+    return { owner: shortMatch[1]!, repo: shortMatch[2]!, ref: shortMatch[3] }
   }
 
   return null
 }
 
-/** リポジトリのデフォルトブランチを GitHub API で取得する */
 async function getDefaultBranch(owner: string, repo: string): Promise<string> {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`)
-  if (!res.ok) {
-    if (res.status === 404) throw new Error(`リポジトリが見つかりません: ${owner}/${repo}`)
-    if (res.status === 403) throw new Error('GitHub API のレート制限に達しました。しばらく後に再試行してください。')
-    throw new Error(`GitHub API エラー: ${res.status}`)
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`)
+    if (!res.ok) {
+      if (res.status === 404) {
+        throw new Error(`Repository not found: ${owner}/${repo}`)
+      }
+      if (res.status === 403) {
+        throw new Error('GitHub API rate limit exceeded. Please try again later.')
+      }
+      throw new Error(`GitHub API error: ${res.status}`)
+    }
+    const data = await res.json() as Record<string, unknown>
+    return (data.default_branch as string) ?? 'main'
+  } catch (e) {
+    if (e instanceof Error) {
+      throw e
+    }
+    throw new Error('GitHub API communication error')
   }
-  const data = await res.json()
-  return data.default_branch ?? 'main'
 }
 
-/** raw.githubusercontent.com からファイルを取得する */
 async function fetchRaw(owner: string, repo: string, ref: string, path: string): Promise<string | null> {
-  const url = `${RAW_BASE}/${owner}/${repo}/${ref}/${path}`
-  const res = await fetch(url)
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error(`ファイル取得失敗 (${path}): HTTP ${res.status}`)
-  return res.text()
+  try {
+    const url = `${RAW_BASE}/${owner}/${repo}/${ref}/${path}`
+    const res = await fetch(url)
+    if (res.status === 404) {
+      return null
+    }
+    if (!res.ok) {
+      throw new Error(`Failed to fetch file (${path}): HTTP ${res.status}`)
+    }
+    return res.text()
+  } catch (e) {
+    if (e instanceof Error) {
+      throw e
+    }
+    throw new Error(`Error fetching file (${path})`)
+  }
 }
 
-/** GitHub リポジトリから package.json とロックファイルを取得する */
 export async function fetchFromGitHub(owner: string, repo: string, ref?: string): Promise<GitHubFetchResult> {
   const resolvedRef = ref ?? (await getDefaultBranch(owner, repo))
 
-  // package.json を取得
   const packageJson = await fetchRaw(owner, repo, resolvedRef, 'package.json')
   if (!packageJson) {
-    throw new Error(`package.json が見つかりません (${owner}/${repo}@${resolvedRef})`)
+    throw new Error(`package.json not found in ${owner}/${repo}@${resolvedRef}`)
   }
 
-  // ロックファイルを順番に試みる
   let lockfile: string | null = null
   let lockfileType: LockfileType = 'none'
 

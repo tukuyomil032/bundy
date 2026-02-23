@@ -18,7 +18,6 @@ export default [
       parserOptions: { parser: tseslint.parser, sourceType: "module" },
     },
   },
-  // Tailwind/インライン記法との兼ね合いで一部ルールをオフ
   {
     rules: {
       'vue/first-attribute-linebreak': 'off',
